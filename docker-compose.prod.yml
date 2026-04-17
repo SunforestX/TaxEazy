@@ -1,0 +1,72 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: taxeazy-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-taxeasy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-TaxEazy2026!Secure}
+      POSTGRES_DB: ${POSTGRES_DB:-taxeasy}
+    volumes:
+      - /mnt/taxeazy-data/postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-taxeasy} -d ${POSTGRES_DB:-taxeasy}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - taxeazy-network
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: taxeazy-backend
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-taxeasy}:${POSTGRES_PASSWORD:-TaxEazy2026!Secure}@postgres:5432/${POSTGRES_DB:-taxeasy}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - REFRESH_TOKEN_EXPIRE_DAYS=7
+      - ENVIRONMENT=production
+      - UPLOAD_DIR=/app/uploads
+    volumes:
+      - ./backend:/app
+      - /mnt/taxeazy-data/uploads:/app/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - taxeazy-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: taxeazy-frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://168.138.11.253:8000
+      - NEXT_TELEMETRY_DISABLED=1
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    command: npm run dev
+    networks:
+      - taxeazy-network
+    restart: unless-stopped
+
+networks:
+  taxeazy-network:
+    driver: bridge
