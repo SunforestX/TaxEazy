@@ -10,7 +10,63 @@ from sqlalchemy import select, func, extract, and_
 from app.services.base import BaseService
 from app.models.payroll import PayrollRun, PayrollItem
 from app.models.employee import Employee
+from app.models.transaction import Transaction
 from app.utils.pagination import paginate
+
+
+# 2025-2026 Australian resident individual tax brackets
+# Each tuple: (upper_threshold, marginal_rate, base_tax)
+TAX_BRACKETS_2025_26 = [
+    (18200, 0, 0),              # $0 - $18,200: Nil
+    (45000, 0.16, 0),           # $18,201 - $45,000: 16c per $1 over $18,200
+    (135000, 0.30, 4288),       # $45,001 - $135,000: $4,288 + 30c per $1 over $45,000
+    (190000, 0.37, 31288),      # $135,001 - $190,000: $31,288 + 37c per $1 over $135,000
+    (float('inf'), 0.45, 51638),  # $190,001+: $51,638 + 45c per $1 over $190,000
+]
+
+MEDICARE_LEVY_RATE = 0.02
+SMALL_BUSINESS_TAX_RATE = 0.25
+
+
+def calculate_individual_tax(annual_income: float) -> dict:
+    """
+    Calculate individual income tax using 2025-26 Australian resident rates.
+
+    Args:
+        annual_income: Gross annual income
+
+    Returns:
+        Dict with gross_income, tax_payable, medicare_levy, total_tax, effective_rate
+    """
+    if annual_income <= 0:
+        return {
+            "gross_income": round(annual_income, 2),
+            "tax_payable": 0.0,
+            "medicare_levy": 0.0,
+            "total_tax": 0.0,
+            "effective_rate": 0.0,
+        }
+
+    tax_payable = 0.0
+    prev_threshold = 0
+
+    for upper, rate, base_tax in TAX_BRACKETS_2025_26:
+        if annual_income <= upper:
+            tax_payable = base_tax + rate * (annual_income - prev_threshold)
+            break
+        prev_threshold = upper
+
+    medicare_levy = annual_income * MEDICARE_LEVY_RATE
+    total_tax = tax_payable + medicare_levy
+    effective_rate = (total_tax / annual_income) * 100 if annual_income > 0 else 0.0
+
+    return {
+        "gross_income": round(annual_income, 2),
+        "tax_payable": round(tax_payable, 2),
+        "medicare_levy": round(medicare_levy, 2),
+        "total_tax": round(total_tax, 2),
+        "effective_rate": round(effective_rate, 2),
+    }
 
 
 class PayrollService(BaseService[PayrollRun]):
@@ -334,6 +390,99 @@ class PayrollService(BaseService[PayrollRun]):
         db.flush()
         
         return item
+
+
+    def calculate_payg_estimate(
+        self,
+        db: Session,
+        company_id: uuid.UUID
+    ) -> Dict[str, Any]:
+        """
+        Calculate quarterly PAYG installment estimate for a company.
+
+        Queries total income and deductible expenses from transactions,
+        estimates taxable income, calculates company tax at the small
+        business rate (25%), and derives the quarterly installment.
+
+        Args:
+            db: SQLAlchemy session
+            company_id: UUID of the company
+
+        Returns:
+            Dict with PAYG estimate breakdown
+        """
+        today = date.today()
+        # Determine current Australian financial year (1 Jul - 30 Jun)
+        if today.month >= 7:
+            fy_start = date(today.year, 7, 1)
+            fy_end = date(today.year + 1, 6, 30)
+            fy_label = f"{today.year}-{str(today.year + 1)[-2:]}"
+        else:
+            fy_start = date(today.year - 1, 7, 1)
+            fy_end = date(today.year, 6, 30)
+            fy_label = f"{today.year - 1}-{str(today.year)[-2:]}"
+
+        # Total income: transactions with amount > 0 in the FY
+        income_stmt = select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+            and_(
+                Transaction.date >= fy_start,
+                Transaction.date <= fy_end,
+                Transaction.amount > 0,
+            )
+        )
+        total_income = float(db.execute(income_stmt).scalar())
+
+        # Total deductible expenses: transactions with amount < 0 (stored as negative)
+        expense_stmt = select(
+            func.coalesce(func.sum(func.abs(Transaction.amount)), 0)
+        ).where(
+            and_(
+                Transaction.date >= fy_start,
+                Transaction.date <= fy_end,
+                Transaction.amount < 0,
+            )
+        )
+        total_expenses = float(db.execute(expense_stmt).scalar())
+
+        estimated_taxable_income = max(total_income - total_expenses, 0.0)
+        estimated_annual_tax = round(estimated_taxable_income * SMALL_BUSINESS_TAX_RATE, 2)
+        quarterly_installment = round(estimated_annual_tax / 4, 2)
+
+        # Employee PAYG withheld from payroll runs in the FY
+        payg_stmt = select(func.coalesce(func.sum(PayrollRun.total_payg), 0)).where(
+            and_(
+                PayrollRun.pay_date >= fy_start,
+                PayrollRun.pay_date <= fy_end,
+            )
+        )
+        employee_payg_withheld = float(db.execute(payg_stmt).scalar())
+
+        # Next PAYG quarterly due date
+        quarterly_due_dates = [
+            date(fy_start.year, 10, 28),
+            date(fy_start.year + 1, 2, 28),
+            date(fy_start.year + 1, 4, 28),
+            date(fy_start.year + 1, 7, 28),
+        ]
+        next_due_date = None
+        for d in quarterly_due_dates:
+            if d > today:
+                next_due_date = d.isoformat()
+                break
+        if not next_due_date:
+            next_due_date = quarterly_due_dates[-1].isoformat()
+
+        return {
+            "financial_year": fy_label,
+            "total_income": round(total_income, 2),
+            "total_expenses": round(total_expenses, 2),
+            "estimated_taxable_income": round(estimated_taxable_income, 2),
+            "company_tax_rate": SMALL_BUSINESS_TAX_RATE,
+            "estimated_annual_tax": estimated_annual_tax,
+            "quarterly_installment": quarterly_installment,
+            "employee_payg_withheld": round(employee_payg_withheld, 2),
+            "next_due_date": next_due_date,
+        }
 
 
 # Singleton instance

@@ -9,6 +9,7 @@ import {
   PayrollItem,
   PayrollItemUpdate,
   PaygSummary,
+  PAYGEstimate,
   PayrollImportResult,
   PaginatedResponse,
   EmployeeFilters,
@@ -99,6 +100,13 @@ export async function importPayrollCSV(file: File): Promise<PayrollImportResult>
 
 export async function getPaygSummary(year: number): Promise<PaygSummary[]> {
   const response = await api.get(`/payroll/payg-summary?year=${year}`);
+  return response.data;
+}
+
+// PAYG Estimate
+
+export async function getPaygEstimate(): Promise<PAYGEstimate> {
+  const response = await api.get('/payroll/payg-estimate');
   return response.data;
 }
 

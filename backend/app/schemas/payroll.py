@@ -116,6 +116,19 @@ class PaygMonthlySummary(BaseModel):
     employee_count: int
 
 
+# PAYG Estimate Schema
+class PAYGEstimateResponse(BaseModel):
+    financial_year: str
+    total_income: float
+    total_expenses: float
+    estimated_taxable_income: float
+    company_tax_rate: float
+    estimated_annual_tax: float
+    quarterly_installment: float
+    employee_payg_withheld: float
+    next_due_date: str
+
+
 # CSV Import Schema
 class PayrollImportResult(BaseModel):
     success: bool

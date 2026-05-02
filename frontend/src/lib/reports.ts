@@ -30,6 +30,37 @@ export async function getComplianceStatus(): Promise<ComplianceStatus> {
   return response.data;
 }
 
+export async function exportRdCsv(startDate?: string, endDate?: string): Promise<Blob> {
+  const params = new URLSearchParams({ format: 'csv' });
+  if (startDate) params.append('start_date', startDate);
+  if (endDate) params.append('end_date', endDate);
+  const response = await api.get(`/reports/rd-summary/export?${params.toString()}`, {
+    responseType: 'blob'
+  });
+  return response.data;
+}
+
+export async function exportRdPdf(startDate?: string, endDate?: string): Promise<Blob> {
+  const params = new URLSearchParams({ format: 'pdf' });
+  if (startDate) params.append('start_date', startDate);
+  if (endDate) params.append('end_date', endDate);
+  const response = await api.get(`/reports/rd-summary/export?${params.toString()}`, {
+    responseType: 'blob'
+  });
+  return response.data;
+}
+
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 export function downloadCsv(blob: Blob, filename: string): void {
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');

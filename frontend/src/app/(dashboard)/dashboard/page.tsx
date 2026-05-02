@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
+import { getPaygEstimate } from '@/lib/payroll';
+import type { PAYGEstimate } from '@/types/payroll';
 import {
   DollarSign,
   Calculator,
@@ -164,6 +166,7 @@ function formatRelativeTime(timestamp: string): string {
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [paygEstimate, setPaygEstimate] = useState<PAYGEstimate | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -173,6 +176,10 @@ export default function DashboardPage() {
     try {
       const response = await api.get('/dashboard/');
       setData(response.data);
+      // Fetch PAYG estimate in parallel (non-blocking)
+      getPaygEstimate()
+        .then(setPaygEstimate)
+        .catch(() => {}); // silently fail - it's supplemental data
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err);
       setError('Failed to load dashboard data. Please try again.');
@@ -315,7 +322,7 @@ export default function DashboardPage() {
         <StatCard
           title="PAYG Withheld"
           value={formatCurrency(stats.payg_withheld)}
-          subtitle="This month"
+          subtitle={paygEstimate ? `Est. quarterly: ${formatCurrency(paygEstimate.quarterly_installment)}` : 'This month'}
           icon={Users}
           href="/payroll"
         />

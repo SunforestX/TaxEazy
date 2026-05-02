@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getMonthlyReport, exportMonthlyReport, getRdSummary, getComplianceStatus, downloadCsv } from '@/lib/reports';
+import { getMonthlyReport, exportMonthlyReport, getRdSummary, getComplianceStatus, downloadCsv, exportRdCsv, exportRdPdf, downloadBlob } from '@/lib/reports';
 import type { MonthlyReport, RdSummary, ComplianceStatus } from '@/types/report';
 
 const MONTHS = [
@@ -28,6 +28,9 @@ export default function ReportsPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [rdExporting, setRdExporting] = useState<'csv' | 'pdf' | null>(null);
+  const [rdStartDate, setRdStartDate] = useState('');
+  const [rdEndDate, setRdEndDate] = useState('');
 
   // Report data states
   const [monthlyReport, setMonthlyReport] = useState<MonthlyReport | null>(null);
@@ -77,6 +80,26 @@ export default function ReportsPage() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Export R&D report
+  const handleRdExport = async (format: 'csv' | 'pdf') => {
+    setRdExporting(format);
+    setError(null);
+    try {
+      const blob = format === 'csv'
+        ? await exportRdCsv(rdStartDate || undefined, rdEndDate || undefined)
+        : await exportRdPdf(rdStartDate || undefined, rdEndDate || undefined);
+      const contentType = format === 'csv' ? 'text/csv' : 'application/pdf';
+      const downloadFile = new Blob([blob], { type: contentType });
+      const filename = `rd-report-${new Date().toISOString().slice(0, 10)}.${format}`;
+      downloadBlob(downloadFile, filename);
+    } catch (err) {
+      setError(`Failed to export R&D report as ${format.toUpperCase()}. Please try again.`);
+      console.error(err);
+    } finally {
+      setRdExporting(null);
     }
   };
 
@@ -413,6 +436,54 @@ export default function ReportsPage() {
       {/* Tab 2: R&D Summary */}
       {activeTab === 'rd' && (
         <div className="space-y-6">
+          {/* Export Controls */}
+          <div className="bg-white rounded-lg border border-slate-200 p-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-slate-700">From:</label>
+                <input
+                  type="date"
+                  value={rdStartDate}
+                  onChange={(e) => setRdStartDate(e.target.value)}
+                  className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Start date"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-slate-700">To:</label>
+                <input
+                  type="date"
+                  value={rdEndDate}
+                  onChange={(e) => setRdEndDate(e.target.value)}
+                  className="border border-slate-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="End date"
+                />
+              </div>
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  onClick={() => handleRdExport('csv')}
+                  disabled={rdExporting !== null}
+                  className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  {rdExporting === 'csv' ? 'Exporting...' : 'Export CSV'}
+                </button>
+                <button
+                  onClick={() => handleRdExport('pdf')}
+                  disabled={rdExporting !== null}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  {rdExporting === 'pdf' ? 'Exporting...' : 'Export PDF'}
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">Leave dates empty to default to current financial year (Jul 1 - Jun 30)</p>
+          </div>
           {loading && (
             <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>

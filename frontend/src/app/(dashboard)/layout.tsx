@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { ToastContextProvider, Toaster } from '@/components/ui/Toast';
@@ -9,13 +12,15 @@ export default function DashboardLayout({
 }: {
   children: ReactNode;
 }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <AuthProvider>
       <ToastContextProvider>
         <div className="min-h-screen bg-slate-50">
-          <Sidebar />
+          <Sidebar mobileOpen={sidebarOpen} onMobileClose={() => setSidebarOpen(false)} />
           <div className="lg:pl-64">
-            <Header />
+            <Header onMenuClick={() => setSidebarOpen(true)} />
             <main className="py-6 px-4 sm:px-6 lg:px-8">
               {children}
             </main>

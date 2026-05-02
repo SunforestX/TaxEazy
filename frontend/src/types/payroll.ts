@@ -132,6 +132,19 @@ export interface PaygSummary {
   employee_count: number;
 }
 
+// PAYG Estimate Types
+export interface PAYGEstimate {
+  financial_year: string;
+  total_income: number;
+  total_expenses: number;
+  estimated_taxable_income: number;
+  company_tax_rate: number;
+  estimated_annual_tax: number;
+  quarterly_installment: number;
+  employee_payg_withheld: number;
+  next_due_date: string;
+}
+
 // CSV Import Types
 export interface PayrollImportResult {
   success: boolean;

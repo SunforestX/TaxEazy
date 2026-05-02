@@ -1,18 +1,21 @@
 import uuid
+import csv
+import io
 from datetime import datetime, date
 from decimal import Decimal
 from typing import Dict, Any, List, Optional, Tuple
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select, and_, func, extract
 from collections import defaultdict
 
 from app.models.transaction import Transaction, RdRelevance, TransactionAllocation
 from app.models.payroll import PayrollRun, PayrollItem
 from app.models.project import Project
+from app.models.company import Company
 from app.models.bas_period import BasPeriod, BasStatus
 from app.models.exception import Exception, Severity
 from app.models.evidence_file import EvidenceFile, LinkedType
-from app.models.supplier import Category, GstTreatment
+from app.models.supplier import Category, GstTreatment, Supplier
 
 
 class ReportingService:
@@ -585,6 +588,201 @@ class ReportingService:
         )
         result = db.execute(query)
         return result.scalar() or 0
+
+
+    def _get_rd_transactions(
+        self,
+        db: Session,
+        start_date: date,
+        end_date: date,
+    ) -> List[Transaction]:
+        """Query R&D-relevant transactions with supplier and project eagerly loaded."""
+        query = (
+            select(Transaction)
+            .options(joinedload(Transaction.supplier), joinedload(Transaction.project))
+            .where(
+                and_(
+                    Transaction.date >= start_date,
+                    Transaction.date <= end_date,
+                    Transaction.rd_relevance.in_([RdRelevance.YES, RdRelevance.PARTIAL]),
+                )
+            )
+            .order_by(Transaction.date)
+        )
+        result = db.execute(query)
+        return result.scalars().unique().all()
+
+    def export_rd_csv(
+        self,
+        db: Session,
+        start_date: date,
+        end_date: date,
+    ) -> str:
+        """
+        Export R&D expenditure data as a CSV string.
+
+        Returns:
+            CSV string with columns: Date, Supplier, Description,
+            Amount (ex-GST), GST Amount, Total, Project, R&D Category, Notes
+        """
+        transactions = self._get_rd_transactions(db, start_date, end_date)
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            "Date", "Supplier", "Description", "Amount (ex-GST)",
+            "GST Amount", "Total", "Project", "R&D Category", "Notes",
+        ])
+
+        total_ex_gst = Decimal("0")
+        total_gst = Decimal("0")
+        total_amount = Decimal("0")
+
+        for t in transactions:
+            gst = t.gst_amount or Decimal("0")
+            ex_gst = t.amount - gst
+            total_ex_gst += ex_gst
+            total_gst += gst
+            total_amount += t.amount
+
+            writer.writerow([
+                t.date.isoformat(),
+                t.supplier.name if t.supplier else "",
+                t.description,
+                str(ex_gst),
+                str(gst),
+                str(t.amount),
+                t.project.name if t.project else "",
+                t.rd_relevance.value if t.rd_relevance else "",
+                t.notes or "",
+            ])
+
+        # Summary row
+        writer.writerow([
+            "", "", "TOTAL",
+            str(total_ex_gst), str(total_gst), str(total_amount),
+            "", "", "",
+        ])
+
+        return output.getvalue()
+
+    def export_rd_pdf(
+        self,
+        db: Session,
+        start_date: date,
+        end_date: date,
+    ) -> bytes:
+        """
+        Generate a PDF report of R&D expenditure.
+
+        Returns:
+            PDF file content as bytes.
+        """
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.units import mm
+        from reportlab.platypus import (
+            SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer,
+        )
+
+        transactions = self._get_rd_transactions(db, start_date, end_date)
+
+        # Get company info
+        company = db.execute(select(Company)).scalar_one_or_none()
+        company_name = company.name if company else "Company"
+        company_abn = company.abn if company else "N/A"
+
+        # Build project summary
+        project_totals: Dict[str, Decimal] = defaultdict(Decimal)
+        for t in transactions:
+            proj_name = t.project.name if t.project else "Unallocated"
+            project_totals[proj_name] += abs(t.amount)
+
+        total_rd = sum(project_totals.values())
+
+        # --- Build PDF ---
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buf,
+            pagesize=landscape(A4),
+            leftMargin=15 * mm,
+            rightMargin=15 * mm,
+            topMargin=15 * mm,
+            bottomMargin=15 * mm,
+        )
+        styles = getSampleStyleSheet()
+        elements: list = []
+
+        # Header
+        elements.append(Paragraph("R&D Expenditure Report", styles["Title"]))
+        elements.append(Paragraph(f"{company_name}  |  ABN: {company_abn}", styles["Normal"]))
+        period_str = f"{start_date.strftime('%d %b %Y')} – {end_date.strftime('%d %b %Y')}"
+        elements.append(Paragraph(f"Period: {period_str}", styles["Normal"]))
+        elements.append(Spacer(1, 8 * mm))
+
+        # --- Summary table: R&D by project ---
+        elements.append(Paragraph("Summary by Project", styles["Heading2"]))
+        summary_data = [["Project", "Total Amount ($)"]]
+        for proj_name in sorted(project_totals, key=lambda k: project_totals[k], reverse=True):
+            summary_data.append([proj_name, f"{project_totals[proj_name]:,.2f}"])
+        summary_data.append(["Total", f"{total_rd:,.2f}"])
+
+        summary_table = Table(summary_data, hAlign="LEFT")
+        summary_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#334155")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ]))
+        elements.append(summary_table)
+        elements.append(Spacer(1, 8 * mm))
+
+        # --- Detailed line-items table ---
+        elements.append(Paragraph("Detailed Line Items", styles["Heading2"]))
+        detail_header = ["Date", "Supplier", "Description", "Amount ($)", "GST ($)", "Project", "Category"]
+        detail_data = [detail_header]
+
+        for t in transactions:
+            gst = t.gst_amount or Decimal("0")
+            detail_data.append([
+                t.date.strftime("%d/%m/%Y"),
+                (t.supplier.name if t.supplier else "")[:30],
+                (t.description or "")[:40],
+                f"{abs(t.amount):,.2f}",
+                f"{abs(gst):,.2f}",
+                (t.project.name if t.project else "")[:25],
+                t.rd_relevance.value if t.rd_relevance else "",
+            ])
+
+        col_widths = [65, 100, 150, 70, 60, 100, 55]
+        detail_table = Table(detail_data, colWidths=col_widths, repeatRows=1, hAlign="LEFT")
+        detail_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#334155")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("ALIGN", (3, 0), (4, -1), "RIGHT"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
+        ]))
+        elements.append(detail_table)
+        elements.append(Spacer(1, 10 * mm))
+
+        # Footer
+        elements.append(Paragraph(
+            f"<b>Total Eligible R&D Spend: ${total_rd:,.2f}</b>",
+            styles["Normal"],
+        ))
+        elements.append(Paragraph(
+            f"Generated: {datetime.utcnow().strftime('%d %b %Y %H:%M UTC')}",
+            styles["Normal"],
+        ))
+
+        doc.build(elements)
+        return buf.getvalue()
 
 
 # Create singleton instance

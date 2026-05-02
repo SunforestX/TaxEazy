@@ -130,6 +130,62 @@ def get_rd_summary(
     return summary
 
 
+def _resolve_financial_year_dates(
+    start_date: Optional[date],
+    end_date: Optional[date],
+) -> tuple[date, date]:
+    """Return (start, end) defaulting to current Australian FY (1 Jul – 30 Jun)."""
+    if start_date is None or end_date is None:
+        today = date.today()
+        if today.month >= 7:
+            fy_start = date(today.year, 7, 1)
+            fy_end = date(today.year + 1, 6, 30)
+        else:
+            fy_start = date(today.year - 1, 7, 1)
+            fy_end = date(today.year, 6, 30)
+        start_date = start_date or fy_start
+        end_date = end_date or fy_end
+    return start_date, end_date
+
+
+@router.get("/rd-summary/export")
+def export_rd_summary(
+    request: Request,
+    format: str = Query("csv", description="Export format: csv or pdf"),
+    start_date: Optional[date] = Query(None, description="Start date (default: current FY start)"),
+    end_date: Optional[date] = Query(None, description="End date (default: current FY end)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Export R&D expenditure data as CSV or PDF.
+
+    - **format**: `csv` or `pdf`
+    - **start_date** / **end_date**: Optional date range. Defaults to current
+      Australian financial year (July 1 – June 30).
+    """
+    resolved_start, resolved_end = _resolve_financial_year_dates(start_date, end_date)
+
+    if format.lower() == "pdf":
+        pdf_bytes = reporting_service.export_rd_pdf(db, resolved_start, resolved_end)
+        fy_label = f"{resolved_start.strftime('%Y%m%d')}_{resolved_end.strftime('%Y%m%d')}"
+        filename = f"rd_expenditure_{fy_label}.pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+    else:
+        csv_str = reporting_service.export_rd_csv(db, resolved_start, resolved_end)
+        fy_label = f"{resolved_start.strftime('%Y%m%d')}_{resolved_end.strftime('%Y%m%d')}"
+        filename = f"rd_expenditure_{fy_label}.csv"
+        return StreamingResponse(
+            io.BytesIO(csv_str.encode("utf-8")),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+
+
 @router.get("/compliance-status", response_model=ComplianceStatusResponse)
 def get_compliance_status(
     request: Request,

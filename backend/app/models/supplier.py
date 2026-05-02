@@ -37,6 +37,7 @@ class Supplier(Base):
     default_category = Column(Enum(Category), nullable=True)
     default_gst_treatment = Column(Enum(GstTreatment), nullable=True)
     notes = Column(String(1000), nullable=True)
+    xero_id = Column(String, nullable=True, unique=True, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

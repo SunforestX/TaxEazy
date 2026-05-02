@@ -179,3 +179,26 @@ def disconnect_xero(
         )
     
     return {"message": "Xero integration disconnected successfully"}
+
+
+@router.post("/xero/push-rd")
+def push_rd_categorization(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+) -> dict:
+    """
+    Push R&D categorizations back to Xero.
+    
+    Admin only. Updates Xero invoices with R&D tracking categories
+    for transactions marked as R&D-relevant.
+    """
+    xero = XeroIntegration()
+    result = xero.push_rd_categorization(db)
+    
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.get("errors", ["Unknown error during R&D push"])
+        )
+    
+    return result

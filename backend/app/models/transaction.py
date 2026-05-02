@@ -31,8 +31,10 @@ class Transaction(Base):
     project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=True, index=True)
     notes = Column(Text, nullable=True)
     attachment_path = Column(String(500), nullable=True)
+    xero_id = Column(String, nullable=True, unique=True, index=True)
+    source = Column(String, nullable=True)  # 'xero', 'csv', 'manual'
     is_reconciled = Column(Boolean, default=False, nullable=False)
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

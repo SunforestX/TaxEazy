@@ -14,7 +14,8 @@ from app.schemas.payroll import (
     PayrollItemUpdate,
     PayrollItemResponse,
     PaygMonthlySummary,
-    PayrollImportResult
+    PayrollImportResult,
+    PAYGEstimateResponse
 )
 from app.schemas.common import PaginatedResponse
 from app.services.payroll import payroll_service
@@ -175,6 +176,23 @@ def import_payroll_csv(
         items_created=result["items_created"],
         errors=result["errors"]
     )
+
+
+@router.get("/payg-estimate", response_model=PAYGEstimateResponse)
+def get_payg_estimate(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get estimated PAYG installment for the current financial year.
+
+    Returns company tax estimate, quarterly installment amount,
+    and total employee PAYG withheld.
+    """
+    estimate = payroll_service.calculate_payg_estimate(
+        db, company_id=current_user.id
+    )
+    return estimate
 
 
 @router.get("/payg-summary", response_model=List[PaygMonthlySummary])

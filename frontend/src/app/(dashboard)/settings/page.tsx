@@ -1,8 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '@/lib/api';
 import auth from '@/lib/auth';
+import { integrations, XeroStatus, SyncResult } from '@/lib/integrations';
+import { useToast } from '@/components/ui/Toast';
+import {
+  RefreshCw,
+  Link as LinkIcon,
+  Unlink,
+  Upload,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  ArrowRight,
+} from 'lucide-react';
 
 interface Company {
   id: string;
@@ -58,6 +70,18 @@ export default function SettingsPage() {
   const [showAddUserDialog, setShowAddUserDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
+  // Xero integration state
+  const [xeroStatus, setXeroStatus] = useState<XeroStatus | null>(null);
+  const [isLoadingXero, setIsLoadingXero] = useState(true);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
+  const [syncingType, setSyncingType] = useState<string | null>(null);
+  const [lastSyncResults, setLastSyncResults] = useState<Record<string, SyncResult>>({});
+  const [isPushingRd, setIsPushingRd] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { addToast } = useToast();
+
   // Add/Edit user form
   const [userForm, setUserForm] = useState({
     name: '',
@@ -67,6 +91,17 @@ export default function SettingsPage() {
     is_active: true,
   });
   const [isSavingUser, setIsSavingUser] = useState(false);
+
+  const fetchXeroStatus = useCallback(async () => {
+    try {
+      const res = await integrations.getXeroStatus();
+      setXeroStatus(res.data);
+    } catch {
+      setXeroStatus(null);
+    } finally {
+      setIsLoadingXero(false);
+    }
+  }, []);
 
   // Fetch current user, company, and users on mount
   useEffect(() => {
@@ -91,7 +126,117 @@ export default function SettingsPage() {
       }
     };
     fetchData();
+    fetchXeroStatus();
+  }, [fetchXeroStatus]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, []);
+
+  const handleConnectXero = async () => {
+    setIsConnecting(true);
+    try {
+      const res = await integrations.getXeroAuthUrl();
+      window.open(res.data.auth_url, '_blank');
+
+      // Poll for connection status
+      let elapsed = 0;
+      pollRef.current = setInterval(async () => {
+        elapsed += 3000;
+        if (elapsed > 300000) {
+          // 5 min timeout
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = null;
+          setIsConnecting(false);
+          addToast({ title: 'Authorization timed out', description: 'Please try again.', variant: 'error' });
+          return;
+        }
+        try {
+          const statusRes = await integrations.getXeroStatus();
+          if (statusRes.data.connected) {
+            if (pollRef.current) clearInterval(pollRef.current);
+            pollRef.current = null;
+            setXeroStatus(statusRes.data);
+            setIsConnecting(false);
+            addToast({ title: 'Xero connected', description: `Connected to ${statusRes.data.tenant_name || 'Xero'}`, variant: 'success' });
+          }
+        } catch {
+          // keep polling
+        }
+      }, 3000);
+    } catch (error: any) {
+      setIsConnecting(false);
+      addToast({ title: 'Connection failed', description: error.response?.data?.detail || 'Could not start Xero authorization', variant: 'error' });
+    }
+  };
+
+  const handleDisconnectXero = async () => {
+    setIsDisconnecting(true);
+    try {
+      await integrations.disconnectXero();
+      setXeroStatus(null);
+      setShowDisconnectConfirm(false);
+      setLastSyncResults({});
+      addToast({ title: 'Xero disconnected', variant: 'success' });
+    } catch (error: any) {
+      addToast({ title: 'Disconnect failed', description: error.response?.data?.detail || 'Failed to disconnect', variant: 'error' });
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
+  const handleSync = async (syncType: string) => {
+    setSyncingType(syncType);
+    try {
+      const res = await integrations.sync(syncType);
+      setLastSyncResults((prev) => ({ ...prev, [syncType]: res.data }));
+      if (res.data.success) {
+        addToast({ title: `Sync ${syncType} complete`, description: `${res.data.items_synced} items synced`, variant: 'success' });
+      } else {
+        addToast({ title: `Sync ${syncType} had errors`, description: res.data.errors.join(', '), variant: 'warning' });
+      }
+      await fetchXeroStatus();
+    } catch (error: any) {
+      addToast({ title: `Sync ${syncType} failed`, description: error.response?.data?.detail || 'Sync failed', variant: 'error' });
+    } finally {
+      setSyncingType(null);
+    }
+  };
+
+  const handleSyncAll = async () => {
+    const types = ['contacts', 'invoices', 'transactions'];
+    for (const t of types) {
+      setSyncingType(t);
+      try {
+        const res = await integrations.sync(t);
+        setLastSyncResults((prev) => ({ ...prev, [t]: res.data }));
+      } catch {
+        addToast({ title: `Sync ${t} failed`, variant: 'error' });
+      }
+    }
+    setSyncingType(null);
+    await fetchXeroStatus();
+    addToast({ title: 'Sync all complete', variant: 'success' });
+  };
+
+  const handlePushRd = async () => {
+    setIsPushingRd(true);
+    try {
+      const res = await integrations.pushRdCategorization();
+      if (res.data.success) {
+        addToast({ title: 'R&D push complete', description: `${res.data.items_pushed ?? 0} items pushed to Xero`, variant: 'success' });
+      } else {
+        addToast({ title: 'R&D push had errors', description: (res.data.errors ?? []).join(', '), variant: 'warning' });
+      }
+    } catch (error: any) {
+      addToast({ title: 'R&D push failed', description: error.response?.data?.detail || 'Push failed', variant: 'error' });
+    } finally {
+      setIsPushingRd(false);
+    }
+  };
 
   const fetchUsers = async () => {
     setIsLoadingUsers(true);
@@ -485,54 +630,236 @@ export default function SettingsPage() {
       {/* Integrations Tab */}
       {activeTab === 'integrations' && (
         <div className="space-y-6">
+          {/* Xero Connection Card */}
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
             <div className="px-6 py-4 border-b border-slate-200">
-              <h2 className="text-lg font-semibold text-slate-900">Accounting Integrations</h2>
-              <p className="text-sm text-slate-500">Connect with external accounting software</p>
+              <h2 className="text-lg font-semibold text-slate-900">Xero Integration</h2>
+              <p className="text-sm text-slate-500">Connect your Xero account to sync invoices, expenses, and contacts</p>
             </div>
 
-            <div className="p-6 space-y-4">
-              {/* Xero Integration */}
-              <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+            <div className="p-6">
+              {isLoadingXero ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                  <span className="ml-2 text-slate-500">Loading status...</span>
+                </div>
+              ) : !xeroStatus?.connected ? (
+                /* Not connected */
+                <div className="flex flex-col sm:flex-row items-center gap-6">
+                  <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center shrink-0">
+                    <svg className="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
                     </svg>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-slate-900">Xero</h3>
-                    <p className="text-sm text-slate-500">Connect to Xero Accounting</p>
+                  <div className="flex-1 text-center sm:text-left">
+                    <h3 className="font-semibold text-slate-900">Connect to Xero</h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Connect your Xero account to automatically sync invoices, expenses, and contacts for R&D tax tracking.
+                    </p>
                   </div>
+                  <button
+                    onClick={handleConnectXero}
+                    disabled={isConnecting}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+                  >
+                    {isConnecting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Waiting for authorization...
+                      </>
+                    ) : (
+                      <>
+                        <LinkIcon className="h-4 w-4" />
+                        Connect to Xero
+                      </>
+                    )}
+                  </button>
                 </div>
-                <button
-                  disabled
-                  className="px-4 py-2 bg-slate-100 text-slate-500 text-sm font-medium rounded-md cursor-not-allowed"
-                >
-                  Coming Soon
-                </button>
+              ) : (
+                /* Connected */
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+                      <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-slate-900">{xeroStatus.tenant_name || 'Xero'}</h3>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                          Connected
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-500 mt-0.5">
+                        Last synced: {xeroStatus.last_sync_at ? formatDate(xeroStatus.last_sync_at) : 'Never'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowDisconnectConfirm(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-rose-200 text-rose-600 text-sm font-medium rounded-lg hover:bg-rose-50 transition-colors"
+                  >
+                    <Unlink className="h-4 w-4" />
+                    Disconnect
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sync Section (only if connected) */}
+          {xeroStatus?.connected && (
+            <>
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+                <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">Data Sync</h2>
+                    <p className="text-sm text-slate-500">Pull data from Xero into TaxEazy</p>
+                  </div>
+                  <button
+                    onClick={handleSyncAll}
+                    disabled={syncingType !== null}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {syncingType !== null ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4" />
+                        Sync All
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {(['contacts', 'invoices', 'transactions'] as const).map((syncType) => {
+                    const result = lastSyncResults[syncType];
+                    const isSyncing = syncingType === syncType;
+                    return (
+                      <div
+                        key={syncType}
+                        className="p-4 border border-slate-200 rounded-lg space-y-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium text-slate-900 capitalize">{syncType}</h3>
+                          {result && (
+                            result.success ? (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-rose-500" />
+                            )
+                          )}
+                        </div>
+                        {result && (
+                          <p className="text-xs text-slate-500">
+                            {result.items_synced} items synced
+                            {result.errors.length > 0 && (
+                              <span className="text-rose-500 block">{result.errors.length} error(s)</span>
+                            )}
+                          </p>
+                        )}
+                        <button
+                          onClick={() => handleSync(syncType)}
+                          disabled={syncingType !== null}
+                          className="w-full inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {isSyncing ? (
+                            <>
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              Syncing...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="h-3.5 w-3.5" />
+                              Sync {syncType}
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* MYOB Integration */}
-              <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-slate-900">MYOB</h3>
-                    <p className="text-sm text-slate-500">Connect to MYOB AccountRight</p>
-                  </div>
+              {/* Push R&D to Xero */}
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+                <div className="px-6 py-4 border-b border-slate-200">
+                  <h2 className="text-lg font-semibold text-slate-900">Push R&D to Xero</h2>
+                  <p className="text-sm text-slate-500">
+                    Push R&D categorisation back to Xero for tagged expenses
+                  </p>
                 </div>
-                <button
-                  disabled
-                  className="px-4 py-2 bg-slate-100 text-slate-500 text-sm font-medium rounded-md cursor-not-allowed"
-                >
-                  Coming Soon
-                </button>
+                <div className="p-6">
+                  <button
+                    onClick={handlePushRd}
+                    disabled={isPushingRd}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isPushingRd ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Pushing...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4" />
+                        Push R&D Categorisation
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
+            </>
+          )}
+
+          {/* MYOB - Coming Soon */}
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm opacity-60">
+            <div className="p-6 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-900">MYOB</h3>
+                  <p className="text-sm text-slate-500">Connect to MYOB AccountRight</p>
+                </div>
+              </div>
+              <span className="px-3 py-1 bg-slate-100 text-slate-500 text-xs font-medium rounded-full">
+                Coming Soon
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Disconnect Confirmation Modal */}
+      {showDisconnectConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-6">
+            <h3 className="text-lg font-semibold text-slate-900">Disconnect Xero?</h3>
+            <p className="mt-2 text-sm text-slate-500">
+              This will revoke access tokens and remove the integration. You can reconnect later.
+            </p>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowDisconnectConfirm(false)}
+                disabled={isDisconnecting}
+                className="px-4 py-2 text-slate-700 text-sm font-medium hover:bg-slate-100 rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDisconnectXero}
+                disabled={isDisconnecting}
+                className="px-4 py-2 bg-rose-600 text-white text-sm font-medium rounded-md hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
+              </button>
             </div>
           </div>
         </div>
