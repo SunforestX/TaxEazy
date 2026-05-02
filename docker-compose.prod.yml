@@ -61,6 +61,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://tax.sunforestx.com.au/api}
     container_name: sunforest-frontend-prod
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}

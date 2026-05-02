@@ -20,6 +20,10 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
+# Pass NEXT_PUBLIC_API_URL at build time so Next.js bakes it into the bundle
+ARG NEXT_PUBLIC_API_URL=https://tax.sunforestx.com.au/api
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 # Build the application
 RUN npm run build
 
@@ -29,6 +33,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Make NEXT_PUBLIC_API_URL available at runtime too
+ARG NEXT_PUBLIC_API_URL=https://tax.sunforestx.com.au/api
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 # Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs
