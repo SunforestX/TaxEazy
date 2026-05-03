@@ -39,6 +39,7 @@ api.interceptors.response.use(
           // No refresh token, logout
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
+          document.cookie = 'access_token=; path=/; max-age=0';
           window.location.href = '/login';
           return Promise.reject(error);
         }
@@ -51,6 +52,8 @@ api.interceptors.response.use(
         const { access_token, refresh_token } = response.data;
         localStorage.setItem('access_token', access_token);
         localStorage.setItem('refresh_token', refresh_token);
+        // Update auth cookie with refreshed token
+        document.cookie = `access_token=${access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
 
         // Retry the original request
         originalRequest.headers.Authorization = `Bearer ${access_token}`;
@@ -59,6 +62,7 @@ api.interceptors.response.use(
         // Refresh failed, logout
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
+        document.cookie = 'access_token=; path=/; max-age=0';
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }

@@ -29,6 +29,9 @@ export const auth = {
     // Store tokens
     localStorage.setItem('access_token', tokens.access_token);
     localStorage.setItem('refresh_token', tokens.refresh_token);
+
+    // Set cookie so Next.js middleware can read auth state server-side
+    document.cookie = `access_token=${tokens.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
     
     return tokens;
   },
@@ -36,6 +39,8 @@ export const auth = {
   async logout(): Promise<void> {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    // Remove auth cookie
+    document.cookie = 'access_token=; path=/; max-age=0';
   },
 
   async getCurrentUser(): Promise<User> {
