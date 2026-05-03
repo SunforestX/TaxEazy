@@ -42,8 +42,6 @@ interface TransactionFormData {
   description: string;
   amount: string;
   gst_amount: string;
-  account_code: string;
-  reference: string;
   supplier_id: string;
   category: string;
   gst_treatment: string;
@@ -56,8 +54,6 @@ const initialFormData: TransactionFormData = {
   description: '',
   amount: '',
   gst_amount: '',
-  account_code: '',
-  reference: '',
   supplier_id: '',
   category: '',
   gst_treatment: '',
@@ -239,8 +235,6 @@ export default function TransactionsPage() {
       description: transaction.description,
       amount: transaction.amount,
       gst_amount: transaction.gst_amount || '',
-      account_code: transaction.account_code || '',
-      reference: transaction.reference || '',
       supplier_id: transaction.supplier_id || '',
       category: transaction.category || '',
       gst_treatment: transaction.gst_treatment || '',
@@ -261,8 +255,6 @@ export default function TransactionsPage() {
         category: formData.category as Category || null,
         gst_treatment: formData.gst_treatment as GstTreatment || null,
         gst_amount: formData.gst_amount || null,
-        account_code: formData.account_code || null,
-        reference: formData.reference || null,
         notes: formData.notes || null,
       };
 
@@ -910,36 +902,6 @@ export default function TransactionsPage() {
                     onChange={(e) => setFormData(d => ({ ...d, gst_amount: e.target.value }))}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
                     placeholder="0.00"
-                  />
-                </div>
-
-                {/* Account Code */}
-                <div className="space-y-2">
-                  <Label.Root htmlFor="account_code" className="text-sm font-medium text-slate-700">
-                    Account Code
-                  </Label.Root>
-                  <input
-                    id="account_code"
-                    type="text"
-                    value={formData.account_code}
-                    onChange={(e) => setFormData(d => ({ ...d, account_code: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                    placeholder="e.g., 6100"
-                  />
-                </div>
-
-                {/* Reference */}
-                <div className="space-y-2">
-                  <Label.Root htmlFor="reference" className="text-sm font-medium text-slate-700">
-                    Reference
-                  </Label.Root>
-                  <input
-                    id="reference"
-                    type="text"
-                    value={formData.reference}
-                    onChange={(e) => setFormData(d => ({ ...d, reference: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                    placeholder="Invoice or reference number"
                   />
                 </div>
 
