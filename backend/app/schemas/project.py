@@ -14,14 +14,12 @@ class ProjectBase(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     budget: Optional[Decimal] = None
-    eligibility_rationale: Optional[str] = None
-    notes: Optional[str] = None
+    scientific_rationale: Optional[str] = None
+    eligibility_notes: Optional[str] = None
 
 
 class ProjectCreate(ProjectBase):
     code: str = Field(..., min_length=1, max_length=50)
-    scientific_rationale: Optional[str] = None
-    eligibility_notes: Optional[str] = None
 
 
 class ProjectUpdate(BaseModel):
@@ -31,8 +29,6 @@ class ProjectUpdate(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     budget: Optional[Decimal] = None
-    eligibility_rationale: Optional[str] = None
-    notes: Optional[str] = None
     scientific_rationale: Optional[str] = None
     eligibility_notes: Optional[str] = None
 

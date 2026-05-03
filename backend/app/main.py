@@ -18,6 +18,7 @@ app = FastAPI(
     title="SunForest X Therapeutics API",
     description="Internal finance and R&D intelligence platform",
     version="1.0.0",
+    redirect_slashes=False,
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
 )

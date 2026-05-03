@@ -4,7 +4,7 @@ from typing import List, Optional, Callable, Dict, Any
 from datetime import datetime
 from decimal import Decimal
 from sqlalchemy.orm import Session
-from sqlalchemy import select, and_, not_, exists
+from sqlalchemy import select, and_, not_, exists, func, or_, cast, Text
 
 from app.models.exception import Exception, ExceptionType, Severity, EntityType
 from app.models.transaction import Transaction, TransactionAllocation
@@ -310,10 +310,10 @@ class RulesEngine:
         stmt = select(PayrollItem).join(Employee).where(
             and_(
                 Employee.is_scientist == True,
-                (
-                    PayrollItem.project_allocations.is_(None) |
-                    (PayrollItem.project_allocations == []) |
-                    (PayrollItem.project_allocations == "[]")
+                or_(
+                    PayrollItem.project_allocations.is_(None),
+                    cast(PayrollItem.project_allocations, Text) == '[]',
+                    cast(PayrollItem.project_allocations, Text) == 'null'
                 )
             )
         )

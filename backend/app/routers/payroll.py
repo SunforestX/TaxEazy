@@ -73,6 +73,39 @@ def list_payroll_runs(
     )
 
 
+@router.get("/payg-estimate", response_model=PAYGEstimateResponse)
+def get_payg_estimate(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get estimated PAYG installment for the current financial year.
+
+    Returns company tax estimate, quarterly installment amount,
+    and total employee PAYG withheld.
+    """
+    estimate = payroll_service.calculate_payg_estimate(
+        db, company_id=current_user.id
+    )
+    return estimate
+
+
+@router.get("/payg-summary", response_model=List[PaygMonthlySummary])
+def get_payg_summary(
+    year: int = Query(..., ge=2000, le=2100, description="Year for summary (YYYY)"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get monthly PAYG summary for a given year.
+    
+    Returns aggregated monthly totals for gross wages, PAYG withheld,
+    and superannuation contributions.
+    """
+    summaries = payroll_service.get_payg_summary(db, year)
+    return summaries
+
+
 @router.get("/{run_id}", response_model=PayrollRunResponse)
 def get_payroll_run(
     run_id: UUID,
@@ -176,39 +209,6 @@ def import_payroll_csv(
         items_created=result["items_created"],
         errors=result["errors"]
     )
-
-
-@router.get("/payg-estimate", response_model=PAYGEstimateResponse)
-def get_payg_estimate(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Get estimated PAYG installment for the current financial year.
-
-    Returns company tax estimate, quarterly installment amount,
-    and total employee PAYG withheld.
-    """
-    estimate = payroll_service.calculate_payg_estimate(
-        db, company_id=current_user.id
-    )
-    return estimate
-
-
-@router.get("/payg-summary", response_model=List[PaygMonthlySummary])
-def get_payg_summary(
-    year: int = Query(..., ge=2000, le=2100, description="Year for summary (YYYY)"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Get monthly PAYG summary for a given year.
-    
-    Returns aggregated monthly totals for gross wages, PAYG withheld,
-    and superannuation contributions.
-    """
-    summaries = payroll_service.get_payg_summary(db, year)
-    return summaries
 
 
 @router.patch("/{run_id}/items/{item_id}", response_model=PayrollItemResponse)

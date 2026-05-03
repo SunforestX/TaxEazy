@@ -203,8 +203,7 @@ class BasService(BaseService[BasPeriod]):
                 "gst_amount": transaction.gst_amount,
                 "gst_treatment": transaction.gst_treatment.value if transaction.gst_treatment else None,
                 "category": transaction.category.value if transaction.category else None,
-                "supplier_name": supplier_name,
-                "reference": getattr(transaction, 'reference', None)
+                "supplier_name": supplier_name
             })
         
         result["items"] = items
@@ -266,8 +265,7 @@ class BasService(BaseService[BasPeriod]):
                 "gst_amount": transaction.gst_amount,
                 "gst_treatment": transaction.gst_treatment.value if transaction.gst_treatment else None,
                 "category": transaction.category.value if transaction.category else None,
-                "supplier_name": supplier_name,
-                "reference": getattr(transaction, 'reference', None)
+                "supplier_name": supplier_name
             })
         
         result["items"] = items

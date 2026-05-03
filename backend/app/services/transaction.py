@@ -47,10 +47,7 @@ class TransactionService(BaseService[Transaction]):
         if filters.search:
             search_pattern = f"%{filters.search}%"
             conditions.append(
-                or_(
-                    Transaction.description.ilike(search_pattern),
-                    Transaction.reference.ilike(search_pattern)
-                )
+                Transaction.description.ilike(search_pattern)
             )
         
         if conditions:
@@ -113,8 +110,6 @@ class TransactionService(BaseService[Transaction]):
                 "description": transaction.description,
                 "amount": transaction.amount,
                 "gst_amount": transaction.gst_amount,
-                "account_code": transaction.account_code,
-                "reference": transaction.reference,
                 "supplier_id": transaction.supplier_id,
                 "supplier_name": supplier_name,
                 "category": transaction.category,
@@ -185,8 +180,6 @@ class TransactionService(BaseService[Transaction]):
             "description": transaction.description,
             "amount": transaction.amount,
             "gst_amount": transaction.gst_amount,
-            "account_code": transaction.account_code,
-            "reference": transaction.reference,
             "supplier_id": transaction.supplier_id,
             "supplier_name": supplier_name,
             "category": transaction.category,

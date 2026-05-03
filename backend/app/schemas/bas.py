@@ -53,7 +53,6 @@ class BasTransactionItem(BaseModel):
     gst_treatment: Optional[str]
     category: Optional[str]
     supplier_name: Optional[str] = None
-    reference: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { transactions, formatCurrency, formatDate } from '@/lib/transactions';
 import { suppliers } from '@/lib/suppliers';
 import { auth } from '@/lib/auth';
@@ -101,6 +101,7 @@ export default function TransactionsPage() {
 
   // Import state
   const [importFile, setImportFile] = useState<File | null>(null);
+  const csvFileInputRef = useRef<HTMLInputElement>(null);
   const [importResult, setImportResult] = useState<{ imported_count: number; error_count: number; errors: { row_number: number; error: string }[] } | null>(null);
 
   // Bulk classify state
@@ -1195,10 +1196,21 @@ export default function TransactionsPage() {
                   <Label.Root className="text-sm font-medium text-slate-700">Upload File</Label.Root>
                   <input
                     type="file"
+                    ref={csvFileInputRef}
                     accept=".csv,.png,.txt,.pdf,.doc,.docx,image/png,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                    className="mt-1 w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    onChange={(e) => {
+                      setImportFile(e.target.files?.[0] || null);
+                    }}
+                    className="hidden"
                   />
+                  <button
+                    type="button"
+                    onClick={() => csvFileInputRef.current?.click()}
+                    className="mt-1 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    <Upload className="h-4 w-4" />
+                    {importFile ? importFile.name : 'Choose File'}
+                  </button>
                   {importFile && (
                     <p className="mt-1 text-xs text-slate-500">Selected: {importFile.name}</p>
                   )}

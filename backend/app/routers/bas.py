@@ -289,3 +289,36 @@ def export_bas_period(
         )
     
     return result
+
+
+@router.delete("/{period_id}", response_model=SuccessResponse)
+def delete_bas_period(
+    period_id: UUID,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """
+    Delete a BAS period (admin only).
+    
+    Finalized periods cannot be deleted.
+    """
+    period = bas_service.get_by_id(db, period_id)
+    if not period:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="BAS period not found"
+        )
+    
+    if period.status == BasStatus.FINALISED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete a finalized BAS period"
+        )
+    
+    bas_service.delete(db, period_id, user_id=admin.id)
+    db.commit()
+    
+    return SuccessResponse(
+        message="BAS period deleted successfully",
+        id=period_id
+    )

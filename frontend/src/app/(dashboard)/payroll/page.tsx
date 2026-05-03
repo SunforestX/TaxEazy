@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getPayrollRuns,
   getPayrollRun,
@@ -503,6 +503,7 @@ export default function PayrollPage() {
   const [isNewRunModalOpen, setIsNewRunModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const csvFileInputRef = useRef<HTMLInputElement>(null);
   const [importResult, setImportResult] = useState<{ success: boolean; message: string } | null>(null);
   
   // PAYG summary state
@@ -1036,10 +1037,23 @@ export default function PayrollPage() {
                 <div className="mt-4">
                   <input
                     type="file"
+                    ref={csvFileInputRef}
                     accept=".csv,.png,.txt,.pdf,.doc,.docx,image/png,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                    className="block w-full text-sm text-slate-500 file:mr-4 file:rounded-md file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
+                    onChange={(e) => {
+                      setImportFile(e.target.files?.[0] || null);
+                    }}
+                    className="hidden"
                   />
+                  <button
+                    type="button"
+                    onClick={() => csvFileInputRef.current?.click()}
+                    className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+                  >
+                    <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    {importFile ? importFile.name : 'Choose File'}
+                  </button>
                   <p className="mt-2 text-xs text-slate-500">
                     CSV format: employee_id, gross_wages, payg_withheld, super_amount, project_allocations, notes
                   </p>

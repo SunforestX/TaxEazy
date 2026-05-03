@@ -26,8 +26,6 @@ class TransactionCreate(BaseModel):
     description: str = Field(..., min_length=1, max_length=500, description="Transaction description")
     amount: Decimal = Field(..., gt=0, description="Transaction amount")
     gst_amount: Optional[Decimal] = Field(None, ge=0, description="GST amount")
-    account_code: Optional[str] = Field(None, max_length=50, description="Account code")
-    reference: Optional[str] = Field(None, max_length=100, description="Reference number")
     supplier_id: Optional[UUID] = Field(None, description="Supplier ID")
     category: Optional[Category] = Field(None, description="Expense category")
     gst_treatment: Optional[GstTreatment] = Field(None, description="GST treatment")
@@ -41,8 +39,6 @@ class TransactionUpdate(BaseModel):
     description: Optional[str] = Field(None, min_length=1, max_length=500, description="Transaction description")
     amount: Optional[Decimal] = Field(None, gt=0, description="Transaction amount")
     gst_amount: Optional[Decimal] = Field(None, ge=0, description="GST amount")
-    account_code: Optional[str] = Field(None, max_length=50, description="Account code")
-    reference: Optional[str] = Field(None, max_length=100, description="Reference number")
     supplier_id: Optional[UUID] = Field(None, description="Supplier ID")
     category: Optional[Category] = Field(None, description="Expense category")
     gst_treatment: Optional[GstTreatment] = Field(None, description="GST treatment")
@@ -59,8 +55,6 @@ class TransactionResponse(BaseModel):
     description: str
     amount: Decimal
     gst_amount: Optional[Decimal]
-    account_code: Optional[str]
-    reference: Optional[str]
     supplier_id: Optional[UUID]
     supplier_name: Optional[str] = None
     category: Optional[Category]
