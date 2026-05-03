@@ -76,6 +76,9 @@ class SupplierService(BaseService[Supplier]):
             The created supplier instance
         """
         data = self._build_contact_info(data.copy())
+        # Remove schema-only fields that don't exist on the model
+        data.pop("gst_registered", None)
+        data.pop("is_rd_supplier", None)
         return super().create(db, data, user_id, ip_address)
     
     def update(
@@ -100,6 +103,9 @@ class SupplierService(BaseService[Supplier]):
             The updated supplier instance or None if not found
         """
         data = self._build_contact_info(data.copy())
+        # Remove schema-only fields that don't exist on the model
+        data.pop("gst_registered", None)
+        data.pop("is_rd_supplier", None)
         return super().update(db, entity_id, data, user_id, ip_address)
     
     def search_by_name_or_abn(

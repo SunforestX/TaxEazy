@@ -1,8 +1,37 @@
 import uuid
+from datetime import datetime, date
+from decimal import Decimal
+from enum import Enum
 from typing import Optional, Any, Dict
 from sqlalchemy.orm import Session
 
 from app.models.audit_event import AuditEvent, ActionType
+
+
+def _serialize_value(val: Any) -> Any:
+    """Convert non-JSON-serializable types to JSON-safe representations."""
+    if val is None:
+        return val
+    if isinstance(val, (datetime, date)):
+        return val.isoformat()
+    if isinstance(val, Decimal):
+        return str(val)
+    if isinstance(val, uuid.UUID):
+        return str(val)
+    if isinstance(val, Enum):
+        return val.value
+    if isinstance(val, dict):
+        return {k: _serialize_value(v) for k, v in val.items()}
+    if isinstance(val, (list, tuple)):
+        return [_serialize_value(v) for v in val]
+    return val
+
+
+def _serialize_dict(d: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Recursively serialize a dict so it is JSON-safe."""
+    if d is None:
+        return None
+    return {k: _serialize_value(v) for k, v in d.items()}
 
 
 def log_audit_event(
@@ -33,9 +62,9 @@ def log_audit_event(
     """
     changes = {}
     if old_values is not None:
-        changes["old"] = old_values
+        changes["old"] = _serialize_dict(old_values)
     if new_values is not None:
-        changes["new"] = new_values
+        changes["new"] = _serialize_dict(new_values)
     
     audit_event = AuditEvent(
         user_id=user_id,

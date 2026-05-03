@@ -143,12 +143,15 @@ export default function TransactionsPage() {
   }, [filters, page, pageSize, sortConfig]);
 
   // Fetch suppliers for dropdown
+  const [supplierError, setSupplierError] = useState(false);
   const fetchSuppliers = useCallback(async () => {
     try {
+      setSupplierError(false);
       const response = await suppliers.getSuppliers({ pageSize: 100 });
       setSupplierList(response.items);
     } catch (error) {
       console.error('Failed to fetch suppliers:', error);
+      setSupplierError(true);
     }
   }, []);
 
@@ -942,7 +945,7 @@ export default function TransactionsPage() {
                 {/* Supplier */}
                 <div className="space-y-2">
                   <Label.Root htmlFor="supplier_id" className="text-sm font-medium text-slate-700">
-                    Supplier
+                    Supplier <span className="text-slate-400 text-xs font-normal">(optional)</span>
                   </Label.Root>
                   <select
                     id="supplier_id"
@@ -951,10 +954,17 @@ export default function TransactionsPage() {
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
                   >
                     <option value="">Select supplier</option>
-                    {supplierList.map(supplier => (
-                      <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                    ))}
+                    {supplierList.length === 0 ? (
+                      <option value="" disabled>No suppliers found. Add suppliers first.</option>
+                    ) : (
+                      supplierList.map(supplier => (
+                        <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                      ))
+                    )}
                   </select>
+                  {supplierList.length === 0 && (
+                    <p className="text-xs text-amber-600">No suppliers available. You can still create a transaction without one.</p>
+                  )}
                 </div>
 
                 {/* Category */}
@@ -1182,13 +1192,16 @@ export default function TransactionsPage() {
                 </div>
 
                 <div>
-                  <Label.Root className="text-sm font-medium text-slate-700">CSV File</Label.Root>
+                  <Label.Root className="text-sm font-medium text-slate-700">Upload File</Label.Root>
                   <input
                     type="file"
-                    accept=".csv"
+                    accept=".csv,.png,.txt,.pdf,.doc,.docx,image/png,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     onChange={(e) => setImportFile(e.target.files?.[0] || null)}
                     className="mt-1 w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   />
+                  {importFile && (
+                    <p className="mt-1 text-xs text-slate-500">Selected: {importFile.name}</p>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">

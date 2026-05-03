@@ -42,5 +42,29 @@ class Supplier(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
+    @property
+    def contact_name(self):
+        return (self.contact_info or {}).get('contact_name', '')
+
+    @property
+    def contact_email(self):
+        return (self.contact_info or {}).get('contact_email', '')
+
+    @property
+    def phone(self):
+        return (self.contact_info or {}).get('phone', '')
+
+    @property
+    def address(self):
+        return (self.contact_info or {}).get('address', '')
+
+    @property
+    def gst_registered(self):
+        return True
+
+    @property
+    def is_rd_supplier(self):
+        return False
+
     def __repr__(self):
         return f"<Supplier(id={self.id}, name={self.name})>"

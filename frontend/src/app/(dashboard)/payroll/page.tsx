@@ -391,11 +391,26 @@ function NewRunModal({
                   <label className="block text-sm font-medium text-slate-700">Payroll Items</label>
                   <button
                     onClick={addItem}
-                    className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                    disabled={employees.length === 0}
+                    className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     + Add Item
                   </button>
                 </div>
+                {employees.length === 0 && (
+                  <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 p-3">
+                    <p className="text-sm text-amber-800">No employees found. Please add employees first in the Employees tab.</p>
+                  </div>
+                )}
+                {employees.length > 0 && formData.items.length > 0 && (
+                  <div className="mt-2 grid gap-2 text-xs font-medium text-slate-500" style={{ gridTemplateColumns: '12rem 7rem 7rem 7rem 2rem' }}>
+                    <span>Employee</span>
+                    <span>Gross Wages ($)</span>
+                    <span>PAYG Withheld ($)</span>
+                    <span>Super Amount ($)</span>
+                    <span></span>
+                  </div>
+                )}
                 <div className="mt-2 space-y-2 max-h-64 overflow-y-auto">
                   {formData.items.map((item, index) => (
                     <div key={index} className="flex items-center gap-2 rounded-md border border-slate-200 p-2">
@@ -404,11 +419,15 @@ function NewRunModal({
                         onChange={(e) => updateItem(index, 'employee_id', e.target.value)}
                         className="block w-48 rounded-md border border-slate-300 px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
                       >
-                        {employees.map((emp) => (
-                          <option key={emp.id} value={emp.id}>
-                            {emp.name}
-                          </option>
-                        ))}
+                        {employees.length === 0 ? (
+                          <option value="" disabled>No employees available</option>
+                        ) : (
+                          employees.map((emp) => (
+                            <option key={emp.id} value={emp.id}>
+                              {emp.name}
+                            </option>
+                          ))
+                        )}
                       </select>
                       <input
                         type="number"
@@ -441,7 +460,7 @@ function NewRunModal({
                       </button>
                     </div>
                   ))}
-                  {formData.items.length === 0 && (
+                  {formData.items.length === 0 && employees.length > 0 && (
                     <p className="text-sm text-slate-500 text-center py-4">No items added. Click "Add Item" to add payroll items.</p>
                   )}
                 </div>
@@ -452,8 +471,8 @@ function NewRunModal({
             <button
               type="button"
               onClick={() => onSave(formData)}
-              disabled={formData.items.length === 0}
-              className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50 sm:ml-3 sm:w-auto"
+              disabled={formData.items.length === 0 || employees.length === 0}
+              className="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed sm:ml-3 sm:w-auto"
             >
               Create Run
             </button>
@@ -536,6 +555,11 @@ export default function PayrollPage() {
       setEmployeesLoading(false);
     }
   }, [employeesPage]);
+
+  // Always fetch employees on mount (needed for NewRunModal)
+  useEffect(() => {
+    fetchEmployees();
+  }, [fetchEmployees]);
 
   // Load data based on active tab
   useEffect(() => {
@@ -1012,7 +1036,7 @@ export default function PayrollPage() {
                 <div className="mt-4">
                   <input
                     type="file"
-                    accept=".csv"
+                    accept=".csv,.png,.txt,.pdf,.doc,.docx,image/png,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     onChange={(e) => setImportFile(e.target.files?.[0] || null)}
                     className="block w-full text-sm text-slate-500 file:mr-4 file:rounded-md file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
                   />

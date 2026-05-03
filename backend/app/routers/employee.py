@@ -86,7 +86,9 @@ def create_employee(
                 detail="Employee with this email already exists"
             )
     
-    employee_data = request.model_dump()
+    # Filter out schema fields that don't exist on the DB model
+    _non_model_fields = {'position', 'employment_start_date', 'employment_end_date', 'annual_salary'}
+    employee_data = {k: v for k, v in request.model_dump().items() if k not in _non_model_fields}
     employee = employee_service.create(
         db,
         data=employee_data,
@@ -125,7 +127,8 @@ def update_employee(
                 detail="Employee with this email already exists"
             )
     
-    update_data = {k: v for k, v in request.model_dump().items() if v is not None}
+    _non_model_fields = {'position', 'employment_start_date', 'employment_end_date', 'annual_salary'}
+    update_data = {k: v for k, v in request.model_dump().items() if v is not None and k not in _non_model_fields}
     
     employee = employee_service.update(
         db,

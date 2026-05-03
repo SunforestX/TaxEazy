@@ -17,6 +17,7 @@ const ALLOWED_FILE_TYPES = [
   'image/png',
   'image/gif',
   'image/webp',
+  'text/plain',
   'text/csv',
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -39,7 +40,7 @@ export function EvidenceUploader({ linkedType, linkedId, onUploadComplete }: Evi
 
   const validateFile = (file: File): string | null => {
     if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-      return 'Invalid file type. Allowed: PDF, images, CSV, XLSX, DOC/DOCX';
+      return 'Invalid file type. Allowed: PDF, images, TXT, CSV, XLSX, DOC/DOCX';
     }
     if (file.size > MAX_FILE_SIZE) {
       return 'File size exceeds 50MB limit';
@@ -189,7 +190,7 @@ export function EvidenceUploader({ linkedType, linkedId, onUploadComplete }: Evi
                 <span className="text-blue-600 hover:text-blue-700">browse</span>
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                PDF, Images, CSV, XLSX, DOC/DOCX up to 50MB
+                PDF, Images, TXT, CSV, XLSX, DOC/DOCX up to 50MB
               </p>
             </div>
           </div>

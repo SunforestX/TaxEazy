@@ -23,5 +23,21 @@ class Employee(Base):
     # Relationships
     default_project = relationship("Project", backref="default_employees")
 
+    @property
+    def position(self):
+        return None
+
+    @property
+    def employment_start_date(self):
+        return None
+
+    @property
+    def employment_end_date(self):
+        return None
+
+    @property
+    def annual_salary(self):
+        return None
+
     def __repr__(self):
         return f"<Employee(id={self.id}, name={self.name}, is_scientist={self.is_scientist})>"

@@ -9,7 +9,7 @@ from sqlalchemy import select, and_, not_, exists
 from app.models.exception import Exception, ExceptionType, Severity, EntityType
 from app.models.transaction import Transaction, TransactionAllocation
 from app.models.payroll import PayrollItem
-from app.models.project import Project
+from app.models.project import Project, ProjectStatus
 from app.models.rd_activity import RdActivity
 from app.models.evidence_file import EvidenceFile, LinkedType
 from app.models.employee import Employee
@@ -226,7 +226,7 @@ class RulesEngine:
         # Find all projects that have allocations or payroll items
         stmt = select(Project).where(
             and_(
-                Project.status.in_(["active", "completed"]),
+                Project.status.in_([ProjectStatus.ACTIVE, ProjectStatus.COMPLETED]),
                 (
                     exists().where(
                         TransactionAllocation.project_id == Project.id
