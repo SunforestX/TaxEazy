@@ -220,20 +220,27 @@ def create_transaction(
     - **rd_relevance**: R&D relevance (default: NO)
     - **notes**: Additional notes (optional)
     """
-    ip_address = get_client_ip(request)
-    
-    transaction = transaction_service.create(
-        db=db,
-        data=data.model_dump(),
-        user_id=admin.id,
-        ip_address=ip_address
-    )
-    
-    db.commit()
-    db.refresh(transaction)
-    
-    # Return with supplier name
-    return transaction_service.get_by_id_with_allocations(db, transaction.id)
+    try:
+        ip_address = get_client_ip(request)
+        
+        transaction = transaction_service.create(
+            db=db,
+            data=data.model_dump(),
+            user_id=admin.id,
+            ip_address=ip_address
+        )
+        
+        db.commit()
+        db.refresh(transaction)
+        
+        # Return with supplier name
+        return transaction_service.get_by_id_with_allocations(db, transaction.id)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create transaction: {str(e)}"
+        )
 
 
 @router.post("/import", response_model=CsvImportResult)

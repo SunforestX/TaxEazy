@@ -249,12 +249,13 @@ export default function TransactionsPage() {
     setIsSubmitting(true);
 
     try {
-      const data = {
+      const data: any = {
         ...formData,
+        amount: parseFloat(formData.amount),
         supplier_id: formData.supplier_id || null,
-        category: formData.category as Category || null,
-        gst_treatment: formData.gst_treatment as GstTreatment || null,
-        gst_amount: formData.gst_amount || null,
+        category: formData.category || null,
+        gst_treatment: formData.gst_treatment || null,
+        gst_amount: formData.gst_amount ? parseFloat(formData.gst_amount) : null,
         notes: formData.notes || null,
       };
 
@@ -266,9 +267,10 @@ export default function TransactionsPage() {
 
       setCreateDialogOpen(false);
       fetchTransactions();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save transaction:', error);
-      alert('Failed to save transaction. Please try again.');
+      const errorMessage = error?.response?.data?.detail || 'Failed to save transaction. Please try again.';
+      alert(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
