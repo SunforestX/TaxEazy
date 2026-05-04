@@ -1161,7 +1161,7 @@ export default function TransactionsPage() {
                   <input
                     type="file"
                     ref={csvFileInputRef}
-                    accept=".csv,.png,.txt,.pdf,.doc,.docx,image/png,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    accept=".csv,text/csv"
                     onChange={(e) => {
                       setImportFile(e.target.files?.[0] || null);
                     }}
