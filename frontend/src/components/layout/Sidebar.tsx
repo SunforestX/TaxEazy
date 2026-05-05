@@ -44,7 +44,7 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
           </div>
           <div className="flex flex-col">
             <span className="font-semibold text-slate-900 leading-tight">TaxEazy</span>
-            <span className="text-xs text-slate-500 leading-tight">SunForest X Therapeutics</span>
+            <span className="text-xs text-slate-500 leading-tight">SunForestX Therapeutics</span>
           </div>
         </Link>
       </div>

@@ -29,7 +29,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-md">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-slate-900">
-            SunForest X Therapeutics
+            SunForestX Therapeutics
           </h1>
           <p className="text-slate-600 mt-2">
             Sign in to your account

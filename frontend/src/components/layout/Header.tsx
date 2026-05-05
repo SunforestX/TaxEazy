@@ -28,7 +28,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-slate-900 leading-tight">TaxEazy</span>
-              <span className="text-[10px] text-slate-500 leading-tight">SunForest X</span>
+              <span className="text-[10px] text-slate-500 leading-tight">SunForestX</span>
             </div>
           </div>
         </div>

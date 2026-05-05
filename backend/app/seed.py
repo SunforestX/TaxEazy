@@ -28,7 +28,7 @@ def seed():
             print(f"Admin user already exists: {admin_email}")
         
         # Create company record if not exists
-        company_name = "SunForest X Therapeutics Pty. Ltd."
+        company_name = "SunForestX Therapeutics Pty. Ltd."
         existing_company = db.query(Company).first()
         
         if not existing_company:

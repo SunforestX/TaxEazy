@@ -1,3 +1,3 @@
-# SunForest X Therapeutics - Finance & R&D Intelligence Platform
+# SunForestX Therapeutics - Finance & R&D Intelligence Platform
 
-Internal finance, GST/BAS, PAYG, and R&D tax evidence platform for SunForest X Therapeutics Pty. Ltd.
+Internal finance, GST/BAS, PAYG, and R&D tax evidence platform for SunForestX Therapeutics Pty. Ltd.

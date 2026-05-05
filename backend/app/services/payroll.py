@@ -219,8 +219,23 @@ class PayrollService(BaseService[PayrollRun]):
         
         try:
             # Read CSV content
-            content = csv_file.read().decode("utf-8")
-            reader = csv.DictReader(io.StringIO(content))
+            raw_content = csv_file.read()
+            
+            # Use utf-8-sig first to automatically strip BOM (Byte Order Mark)
+            # that Excel and other tools add to CSV files
+            try:
+                text_content = raw_content.decode("utf-8-sig")
+            except UnicodeDecodeError:
+                try:
+                    text_content = raw_content.decode("utf-8")
+                except UnicodeDecodeError:
+                    text_content = raw_content.decode("iso-8859-1")
+            
+            reader = csv.DictReader(io.StringIO(text_content))
+            
+            # Clean field names: strip whitespace and BOM characters
+            if reader.fieldnames:
+                reader.fieldnames = [f.strip().lstrip('\ufeff') for f in reader.fieldnames]
             
             for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is 1)
                 try:

@@ -1,1 +1,1 @@
-# SunForest X Therapeutics - Backend Application
+# SunForestX Therapeutics - Backend Application

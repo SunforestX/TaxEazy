@@ -48,7 +48,7 @@ export const transactions = {
     if (filters.max_amount) queryParams.append('max_amount', filters.max_amount);
     if (filters.search) queryParams.append('search', filters.search);
 
-    const response = await api.get<PaginatedTransactions>(`/transactions?${queryParams.toString()}`);
+    const response = await api.get<PaginatedTransactions>(`/transactions/?${queryParams.toString()}`);
     return response.data;
   },
 
@@ -85,7 +85,7 @@ export const transactions = {
    * Create a new transaction (admin only)
    */
   async createTransaction(data: TransactionCreate): Promise<Transaction> {
-    const response = await api.post<Transaction>('/transactions', data);
+    const response = await api.post<Transaction>('/transactions/', data);
     return response.data;
   },
 

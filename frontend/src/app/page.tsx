@@ -11,7 +11,7 @@ export default function Home() {
           </div>
           <div className="text-left">
             <h1 className="text-2xl font-bold text-slate-900 leading-tight">TaxEazy</h1>
-            <p className="text-sm text-slate-500">SunForest X Therapeutics</p>
+            <p className="text-sm text-slate-500">SunForestX Therapeutics</p>
           </div>
         </div>
         <h2 className="text-4xl font-bold text-slate-900">

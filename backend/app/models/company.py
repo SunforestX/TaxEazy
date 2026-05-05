@@ -10,7 +10,7 @@ class Company(Base):
     __tablename__ = "company"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String(255), nullable=False, default="SunForest X Therapeutics Pty. Ltd.")
+    name = Column(String(255), nullable=False, default="SunForestX Therapeutics Pty. Ltd.")
     abn = Column(String(20), nullable=True)
     address = Column(String(500), nullable=True)
     contact_email = Column(String(255), nullable=True, default="hello@sunforestx.com.au")

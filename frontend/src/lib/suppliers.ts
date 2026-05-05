@@ -19,7 +19,7 @@ export const suppliers = {
     queryParams.append('page', page.toString());
     queryParams.append('page_size', pageSize.toString());
     
-    const response = await api.get<PaginatedSuppliers>(`/suppliers?${queryParams.toString()}`);
+    const response = await api.get<PaginatedSuppliers>(`/suppliers/?${queryParams.toString()}`);
     return response.data;
   },
 
@@ -35,7 +35,7 @@ export const suppliers = {
    * Create a new supplier (admin only)
    */
   async createSupplier(data: SupplierCreate): Promise<Supplier> {
-    const response = await api.post<Supplier>('/suppliers', data);
+    const response = await api.post<Supplier>('/suppliers/', data);
     return response.data;
   },
 

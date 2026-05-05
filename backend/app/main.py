@@ -15,9 +15,10 @@ Base.metadata.create_all(bind=engine)
 
 # Create FastAPI app
 app = FastAPI(
-    title="SunForest X Therapeutics API",
+    title="SunForestX Therapeutics API",
     description="Internal finance and R&D intelligence platform",
     version="1.0.0",
+    redirect_slashes=False,
     docs_url="/docs" if settings.debug else None,
     redoc_url="/redoc" if settings.debug else None,
 )
@@ -64,7 +65,7 @@ def health_check():
 def root():
     """Root endpoint."""
     return {
-        "message": "SunForest X Therapeutics API",
+        "message": "SunForestX Therapeutics API",
         "docs": "/docs",
         "health": "/health"
     }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SunForest X Therapeutics",
+  title: "SunForestX Therapeutics",
   description: "Internal finance and R&D intelligence platform",
 };
 
