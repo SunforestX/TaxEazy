@@ -269,7 +269,18 @@ export default function TransactionsPage() {
       fetchTransactions();
     } catch (error: any) {
       console.error('Failed to save transaction:', error);
-      const errorMessage = error?.response?.data?.detail || 'Failed to save transaction. Please try again.';
+      let errorMessage = 'Failed to save transaction. Please try again.';
+      if (error?.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        if (Array.isArray(detail)) {
+          // Pydantic validation errors (422)
+          errorMessage = detail.map((e: any) => e.msg || e.message || JSON.stringify(e)).join('; ');
+        } else {
+          errorMessage = String(detail);
+        }
+      } else if (error?.message) {
+        errorMessage = `Network error: ${error.message}`;
+      }
       alert(errorMessage);
     } finally {
       setIsSubmitting(false);

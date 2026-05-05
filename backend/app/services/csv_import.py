@@ -240,11 +240,13 @@ class CsvImportService:
         await csv_file.seek(0)
         
         # Detect encoding and decode
+        # Use utf-8-sig first to automatically strip BOM (Byte Order Mark)
+        # that Excel and other tools add to CSV files
         try:
-            text_content = content.decode("utf-8")
+            text_content = content.decode("utf-8-sig")
         except UnicodeDecodeError:
             try:
-                text_content = content.decode("utf-8-sig")
+                text_content = content.decode("utf-8")
             except UnicodeDecodeError:
                 text_content = content.decode("iso-8859-1")
         
@@ -259,7 +261,7 @@ class CsvImportService:
                 errors=[CsvRowError(row_number=1, error="CSV file is empty or has no headers")]
             )
         
-        fieldnames_lower = [f.lower().strip() for f in csv_reader.fieldnames]
+        fieldnames_lower = [f.lower().strip().lstrip('\ufeff') for f in csv_reader.fieldnames]
         
         # Check for required columns
         missing_required = []
